@@ -1,0 +1,13 @@
+services:
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    volumes:
+      - worker-storage:/app/storage
+    restart: "no"
+
+volumes:
+  worker-storage:
