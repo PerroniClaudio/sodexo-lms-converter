@@ -4,6 +4,13 @@
 .agents
 node_modules
 vendor
+.env.docker
+.DS_Store
+tests
+docker-compose.yml
+AGENTS.md
+GEMINI.md
+README.md
 bootstrap/cache/*.php
 storage/logs
 storage/framework/cache

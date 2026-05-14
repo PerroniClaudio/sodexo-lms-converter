@@ -28,11 +28,29 @@ class ConvertDocumentJob
 
     protected function runConversion(string $inputFilePath, string $outputDirectory): void
     {
+        $libreOfficeHome = $outputDirectory.DIRECTORY_SEPARATOR.'libreoffice-home';
+        $libreOfficeProfile = $outputDirectory.DIRECTORY_SEPARATOR.'libreoffice-profile';
+
+        if (! mkdir($libreOfficeHome, 0777, true) && ! is_dir($libreOfficeHome)) {
+            throw new DocumentConversionException('Unable to create LibreOffice home directory.');
+        }
+
+        if (! mkdir($libreOfficeProfile, 0777, true) && ! is_dir($libreOfficeProfile)) {
+            throw new DocumentConversionException('Unable to create LibreOffice profile directory.');
+        }
+
         $result = Process::path($outputDirectory)
+            ->env([
+                'HOME' => $libreOfficeHome,
+                'XDG_CACHE_HOME' => $libreOfficeHome.DIRECTORY_SEPARATOR.'.cache',
+                'XDG_CONFIG_HOME' => $libreOfficeHome.DIRECTORY_SEPARATOR.'.config',
+                'XDG_DATA_HOME' => $libreOfficeHome.DIRECTORY_SEPARATOR.'.local'.DIRECTORY_SEPARATOR.'share',
+            ])
             ->timeout((int) config('document-conversion.process_timeout', 120))
             ->run([
                 config('document-conversion.libreoffice_binary', 'soffice'),
                 '--headless',
+                '-env:UserInstallation=file://'.$libreOfficeProfile,
                 '--convert-to',
                 'pdf',
                 '--outdir',

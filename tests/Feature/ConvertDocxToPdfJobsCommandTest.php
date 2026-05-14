@@ -49,7 +49,7 @@ it('claims pending job and marks it completed after successful conversion', func
 
     $this->app->instance(ConvertDocumentJob::class, $mock);
 
-    $this->artisan('jobs:convert-docx-to-pdf')
+    $this->artisan('convert-docx-to-pdf')
         ->assertSuccessful();
 
     $job->refresh();
@@ -72,7 +72,7 @@ it('requeues failed jobs while attempts remain', function () {
 
     $this->app->instance(ConvertDocumentJob::class, $mock);
 
-    $this->artisan('jobs:convert-docx-to-pdf')
+    $this->artisan('convert-docx-to-pdf')
         ->assertSuccessful();
 
     $job->refresh();
@@ -101,7 +101,7 @@ it('marks failed jobs as terminal when max attempts reached', function () {
 
     $this->app->instance(ConvertDocumentJob::class, $mock);
 
-    $this->artisan('jobs:convert-docx-to-pdf')
+    $this->artisan('convert-docx-to-pdf')
         ->assertSuccessful();
 
     $job->refresh();
@@ -111,6 +111,32 @@ it('marks failed jobs as terminal when max attempts reached', function () {
         ->and($job->failed_at)->not->toBeNull()
         ->and($job->worker_id)->toBeNull()
         ->and($job->locked_at)->toBeNull();
+});
+
+it('uses configured max attempts when the job record has an invalid value', function () {
+    config()->set('document-conversion.worker_id', 'worker-1');
+    config()->set('document-conversion.max_jobs_per_run', 1);
+    config()->set('document-conversion.max_attempts', 4);
+
+    $job = createDocumentConversionJob([
+        'max_attempts' => 0,
+    ]);
+
+    $mock = Mockery::mock(ConvertDocumentJob::class);
+    $mock->shouldReceive('handle')
+        ->once()
+        ->andThrow(new RuntimeException('conversion failed'));
+
+    $this->app->instance(ConvertDocumentJob::class, $mock);
+
+    $this->artisan('convert-docx-to-pdf')
+        ->assertSuccessful();
+
+    $job->refresh();
+
+    expect($job->attempts)->toBe(1)
+        ->and($job->max_attempts)->toBe(4)
+        ->and($job->status)->toBe(DocumentConversionJobStatus::PENDING);
 });
 
 it('stops after configured max jobs per run', function () {
@@ -126,7 +152,7 @@ it('stops after configured max jobs per run', function () {
 
     $this->app->instance(ConvertDocumentJob::class, $mock);
 
-    $this->artisan('jobs:convert-docx-to-pdf')
+    $this->artisan('convert-docx-to-pdf')
         ->assertSuccessful();
 
     expect($firstJob->fresh()->status)->toBe(DocumentConversionJobStatus::COMPLETED)

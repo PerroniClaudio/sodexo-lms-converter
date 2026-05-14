@@ -26,6 +26,15 @@ class DocumentConversionJob extends Model
         'worker_id',
     ];
 
+    protected static function booted(): void
+    {
+        static::creating(function (self $job): void {
+            if ((int) $job->max_attempts < 1) {
+                $job->max_attempts = max(1, (int) config('document-conversion.max_attempts', 3));
+            }
+        });
+    }
+
     protected function casts(): array
     {
         return [
@@ -62,5 +71,10 @@ class DocumentConversionJob extends Model
         }
 
         return basename((string) $this->output_path);
+    }
+
+    public function resolvedMaxAttempts(): int
+    {
+        return max(1, (int) ($this->max_attempts ?: config('document-conversion.max_attempts', 3)));
     }
 }

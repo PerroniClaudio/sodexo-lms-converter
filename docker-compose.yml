@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile
     env_file:
-      - .env
+      - .env.docker
     volumes:
       - worker-storage:/app/storage
     restart: "no"

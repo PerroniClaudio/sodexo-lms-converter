@@ -10,19 +10,23 @@ RUN composer install \
     --no-interaction \
     --no-progress \
     --optimize-autoloader \
+    --classmap-authoritative \
     --no-scripts
 
-FROM php:8.4-cli-bookworm
+FROM php:8.5-cli-bookworm
 
 WORKDIR /app
 
+ENV APP_ENV=production \
+    APP_DEBUG=false \
+    LOG_CHANNEL=stderr
+
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        git \
-        libreoffice-core \
-        libreoffice-writer \
         default-jre-headless \
         fonts-dejavu-core \
+        libreoffice-core \
+        libreoffice-writer \
         libzip-dev \
         unzip \
         zip \
@@ -32,8 +36,19 @@ RUN apt-get update \
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 COPY . .
 COPY --from=vendor /app/vendor ./vendor
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint
 
-RUN rm -f bootstrap/cache/*.php
-RUN php artisan package:discover --ansi
+RUN COMPOSER_ALLOW_SUPERUSER=1 composer dump-autoload \
+        --no-dev \
+        --optimize \
+        --classmap-authoritative \
+        --no-interaction \
+    && chmod +x /usr/local/bin/docker-entrypoint \
+    && mkdir -p storage/logs storage/framework/cache storage/framework/sessions storage/framework/testing storage/framework/views storage/app/tmp/document-conversions bootstrap/cache \
+    && rm -f bootstrap/cache/*.php \
+    && chown -R www-data:www-data /app
 
-CMD ["php", "artisan", "jobs:convert-docx-to-pdf", "--no-interaction"]
+USER www-data
+
+ENTRYPOINT ["docker-entrypoint"]
+CMD ["php", "artisan", "convert-docx-to-pdf", "--no-interaction"]

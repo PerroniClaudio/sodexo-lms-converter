@@ -12,7 +12,7 @@ use Illuminate\Console\Command;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Support\Str;
 
-#[Signature('jobs:convert-docx-to-pdf')]
+#[Signature('convert-docx-to-pdf')]
 #[Description('Convert pending DOCX files to PDF and upload them to S3')]
 class ConvertDocxToPdfJobsCommand extends Command
 {
@@ -52,10 +52,12 @@ class ConvertDocxToPdfJobsCommand extends Command
                 $this->line(sprintf('Job [%d] completed.', $job->getKey()));
             } catch (\Throwable $throwable) {
                 $attempts = $job->attempts + 1;
-                $hasRetriesRemaining = $attempts < $job->max_attempts;
+                $maxAttempts = $job->resolvedMaxAttempts();
+                $hasRetriesRemaining = $attempts < $maxAttempts;
 
                 $job->forceFill([
                     'attempts' => $attempts,
+                    'max_attempts' => $maxAttempts,
                     'status' => $hasRetriesRemaining
                         ? DocumentConversionJobStatus::PENDING
                         : DocumentConversionJobStatus::FAILED,
@@ -69,7 +71,7 @@ class ConvertDocxToPdfJobsCommand extends Command
                     'Job [%d] failed on attempt %d/%d: %s',
                     $job->getKey(),
                     $attempts,
-                    $job->max_attempts,
+                    $maxAttempts,
                     $job->error_message,
                 ));
             }
