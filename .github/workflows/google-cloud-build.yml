@@ -48,9 +48,14 @@ jobs:
           BUILD_ID="$(gcloud builds submit \
             --project "${PROJECT_ID}" \
             --async \
-            --format='value(metadata.build.id)' \
+            --format='value(id)' \
             --tag "${IMAGE_URI}" \
             .)"
+
+          if [ -z "${BUILD_ID}" ]; then
+            echo "Unable to determine Cloud Build ID." >&2
+            exit 1
+          fi
 
           gcloud builds describe "${BUILD_ID}" \
             --project "${PROJECT_ID}" \
