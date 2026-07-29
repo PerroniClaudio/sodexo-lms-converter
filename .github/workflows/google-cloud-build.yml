@@ -10,18 +10,40 @@ permissions:
   contents: read
   id-token: write
 
-env:
-  PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
-  REGION: ${{ vars.GCP_REGION }}
-  REPOSITORY: ${{ vars.GCP_ARTIFACT_REGISTRY_REPOSITORY }}
-  IMAGE_NAME: ${{ vars.GCP_IMAGE_NAME }}
-  CLOUD_RUN_JOB: ${{ vars.CLOUD_RUN_JOB }}
-  CLOUD_RUN_JOB_REGION: ${{ vars.CLOUD_RUN_JOB_REGION || vars.GCP_REGION }}
-
 jobs:
   build:
-    name: Build and publish image
+    name: Build and deploy (${{ matrix.name }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: current
+            workload_identity_provider_secret: GCP_WORKLOAD_IDENTITY_PROVIDER
+            service_account_secret: GCP_SERVICE_ACCOUNT
+            project: ${{ vars.GCP_PROJECT_ID }}
+            region: ${{ vars.GCP_REGION }}
+            repository: ${{ vars.GCP_ARTIFACT_REGISTRY_REPOSITORY }}
+            image: ${{ vars.GCP_IMAGE_NAME }}
+            job: ${{ vars.CLOUD_RUN_JOB }}
+            job_region: ${{ vars.CLOUD_RUN_JOB_REGION || vars.GCP_REGION }}
+          - name: lbrform-sodexo
+            workload_identity_provider_secret: LBRFORM_SODEXO_GCP_WORKLOAD_IDENTITY_PROVIDER
+            service_account_secret: LBRFORM_SODEXO_GCP_SERVICE_ACCOUNT
+            project: lbrform-sodexo
+            region: europe-west8
+            repository: app-images
+            image: sodexo-lms-converter
+            job: sodexo-docx-worker
+            job_region: europe-west8
+
+    env:
+      PROJECT_ID: ${{ matrix.project }}
+      REGION: ${{ matrix.region }}
+      REPOSITORY: ${{ matrix.repository }}
+      IMAGE_NAME: ${{ matrix.image }}
+      CLOUD_RUN_JOB: ${{ matrix.job }}
+      CLOUD_RUN_JOB_REGION: ${{ matrix.job_region }}
 
     steps:
       - name: Checkout
@@ -30,8 +52,8 @@ jobs:
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          workload_identity_provider: ${{ secrets[matrix.workload_identity_provider_secret] }}
+          service_account: ${{ secrets[matrix.service_account_secret] }}
 
       - name: Set up Google Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
